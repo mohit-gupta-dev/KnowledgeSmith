@@ -2,6 +2,8 @@
 
 A production-ready **RAG pipeline** implementation designed for document ingestion, chunking, embedding, storage, retrieval, and contextual LLM-powered response generation. Built with modularity and scalability in mind, this codebase balances performance, accuracy, and cost-efficiency.
 
+NOTE: This project is work in progress.
+
 ---
 
 ## 📖 Overview
