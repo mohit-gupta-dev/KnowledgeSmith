@@ -109,55 +109,128 @@ java -jar tabula.jar
 
 ---
 
-## ⚡ Usage
+🗺️ Pipeline Diagram (Mermaid)
 
-```python
-from rag_pipeline import RAGPipeline
+```mermaid
+flowchart TD
+  A[User Query] --> G[Top-K Similarity Search]
+  B[Document Store] --> C{Extract Text}
+  A -. retrieves from .-> F
 
-# Initialize pipeline
-pipeline = RAGPipeline(
-    extractor="pdfplumber",
-    chunking="recursive",
-    embedding="nomic-embed-text",
-    vector_store="faiss",
-    reranker="cross-encoder",
-    llm="mistral"
-)
+  C -->|Default| C1[PDFPlumber]
+  C -->|Fallback| C2[PyPDF2]
+  C -->|Tables| C3[Tabula]
+  C -->|Scans| C4[Tesseract OCR]
 
-# Ingest document
-pipeline.ingest("docs/sample.pdf")
+  C1 --> D[Raw Text]
+  C2 --> D
+  C3 --> D
+  C4 --> D
 
-# Query pipeline
-response = pipeline.query("What are the main findings in this document?")
-print(response)
+  subgraph S1[Chunking]
+    direction LR
+    D --> D1["Recursive (512 tok, 128 overlap)"]
+    D --> D2["Semantic (spaCy or regex)"]
+    D --> D3["Hierarchical (headers and sections)"]
+    D --> D4["Custom (tables or code intact)"]
+  end
+
+  D1 --> E[Chunks]
+  D2 --> E
+  D3 --> E
+  D4 --> E
+
+  subgraph S2[Embeddings]
+    E --> E1["nomic-embed-text"]
+    E --> E2["Alternatives: SentenceTransformers / OpenAI / Cohere / Ollama"]
+  end
+
+  subgraph S3[Vector Store]
+    direction LR
+    E1 --> F[(FAISS)]
+    E2 --> F
+    F -. optional .-> F_alt[(Chroma / Qdrant / Pinecone)]
+  end
+
+  F --> G
+  G -->|K ~ 20| H[Candidates]
+
+  subgraph S4[Reranking]
+    H --> I["Cross-encoder ms-marco-MiniLM-L-6-v2"]
+    I --> J["Top-M Context"]
+    H -. alt .-> I_alt["Heuristics: relevance or diversity"]
+  end
+
+  subgraph S5[LLM Generation]
+    J --> K["Mistral-type LLM (ctx 4096, temp 0.1)"]
+    K --> L[Final Answer]
+  end
+
+  subgraph S6[Evaluation]
+    E1 --> M["Embedding eval: similarity, isotropy, clustering"]
+    G --> N["Retrieval eval: Precision@K, Recall@K, NDCG, MRR"]
+    I --> O["Rerank eval: cross-encoder vs heuristics"]
+  end
+
+  L ==> OUT[Response to user]
+
 ```
 
 ---
 
-## 📈 Evaluation
-
-Evaluate embedding, retrieval, and reranking quality:
-
-```bash
-python evaluate.py --mode embeddings
-python evaluate.py --mode retrieval
-python evaluate.py --mode reranking
+🔗 File-to-Stage Map
+```mermaid
+flowchart LR
+ subgraph Extractors["Extractors"]
+        pdf_utils["pdf_utils.py"]
+  end
+ subgraph Chunking["Chunking"]
+        chunk_strat["chunking_strategies.py"]
+  end
+ subgraph Embeddings["Embeddings"]
+        vec_utils["vector_utils.py"]
+        config["config.py"]
+  end
+ subgraph Retrieval["Retrieval"]
+        faiss_idx[("faiss_index/")]
+        rerank["reranking.py"]
+        ret_eval["retrieval_evaluation.py"]
+  end
+ subgraph LLM["LLM"]
+        llm_utils["llm_utils.py"]
+        mainpy["main.py"]
+  end
+    pdf_utils --> chunk_strat
+    chunk_strat --> vec_utils
+    vec_utils --> faiss_idx
+    faiss_idx --> rerank
+    rerank --> llm_utils
+    llm_utils --> mainpy
+    ret_eval -. benchmarks .- rerank
+    config --- vec_utils
+    Chunking --> n1["Untitled Node"]
 ```
-
----
-
 ## 📂 Project Structure
 
 ```
-rag-pipeline/
-├── extractors/       # PDFPlumber, PyPDF2, Tabula, OCR
-├── chunkers/         # Recursive, Semantic, Hierarchical, Custom
-├── embeddings/       # Nomic, SentenceTransformers, OpenAI, Cohere
-├── vectorstores/     # FAISS (default), Chroma, Qdrant, Pinecone
-├── rerankers/        # Cross-encoder, relevance, diversity
-├── llms/             # Mistral, Ollama, OpenAI
-├── evaluation/       # Embedding, retrieval, reranking benchmarks
-└── main.py           # Pipeline entrypoint
+PDF_RAG/
+├── faiss_index/ # Persisted FAISS artifacts (index, IDs, metadata)
+├── chunking_strategies.py # Recursive/Semantic/Hierarchical/Custom chunkers
+├── config.py # Central configuration (paths, model names, params)
+├── embedding_comparison.py # Embedding A/B tests and reports
+├── faiss_index_metadata.json # Index metadata (dims, metric, doc map)
+├── FLOW.md # Model references for end‑to‑end flow
+├── JUSTIFICATIONS.md # Parameter justifications and design notes
+├── llm_utils.py # LLM wrapper (Mistral/Ollama/OpenAI), prompts, decoding
+├── main.py # Pipeline entry point (ingest + query CLI)
+├── MODELS.md # Catalog of supported models and options
+├── NOTES.md # Dev notes and scratch decisions
+├── pdf_utils.py # PDF extractors (PDFPlumber, PyPDF2, Tabula, OCR)
+├── requirements.txt # Python dependencies
+├── reranking.py # Cross‑encoder and heuristic rerankers
+├── retrieval_evaluation.py # Precision@K, Recall@K, NDCG, MRR evaluation
+├── tests.ipynb # Notebook for quick manual tests
+└── vector_utils.py # Embedding + FAISS utilities (build/search/persist)
 ```
 
 ---
