@@ -1,6 +1,6 @@
 # RAG Pipeline Parameter Justification Document
 
-## Executive Summary
+## Summary
 This document justifies the key parameter choices in our production RAG pipeline implementation, focusing on chunk size, overlap percentage, chunking strategies, and system architecture decisions that optimize for both retrieval accuracy and response quality.
 
 ## Chunk Size Selection: 512 Tokens
